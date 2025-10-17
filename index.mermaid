@@ -1,0 +1,185 @@
+erDiagram
+    USERS ||--o{ CLASS_MEMBERS : has
+    CLASSES ||--o{ CLASS_MEMBERS : has
+    USERS ||--o{ CLASSES : owns
+    CLASSES ||--o{ ASSIGNMENTS : has
+    ASSIGNMENTS ||--o{ SUBMISSIONS : has
+    USERS ||--o{ SUBMISSIONS : creates
+    SUBMISSIONS ||--|| GRADES : has
+    ASSIGNMENTS ||--o{ RUBRICS : uses
+    RUBRICS ||--o{ RUBRIC_ITEMS : has
+    CLASSES ||--o{ SESSIONS : has
+    SESSIONS ||--o{ ATTENDANCE : has
+    THREADS ||--o{ MESSAGES : has
+    USERS ||--o{ THREADS : creates
+    USERS ||--o{ MESSAGES : writes
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ AUDIT_LOGS : acts
+    ASSIGNMENT_TEMPLATES ||--o{ ASSIGNMENTS : instantiates
+
+    USERS {
+      bigint id PK
+      string name
+      string email UK
+      string password
+      enum role  "admin|pengajar|siswa"
+      json meta   "avatar, phone, etc"
+      timestamps
+      softDeletes
+    }
+
+    CLASSES {
+      bigint id PK
+      string code UK
+      string name
+      text description
+      bigint owner_id FK "users.id (pengajar)"
+      date period_start
+      date period_end
+      timestamps
+      softDeletes
+    }
+
+    CLASS_MEMBERS {
+      bigint id PK
+      bigint class_id FK
+      bigint user_id FK
+      enum role_in_class "pengajar|siswa|asisten"
+      timestamps
+      unique(class_id,user_id)
+    }
+
+    ASSIGNMENTS {
+      bigint id PK
+      bigint class_id FK
+      string title
+      text description
+      bigint rubric_id FK NULL
+      datetime deadline_at
+      datetime grace_until_at NULL
+      enum state "draft|open|due|grace|closed|grading|returned"
+      json settings "submission_type, max_file, etc"
+      timestamps
+      softDeletes
+      index(class_id,state,deadline_at)
+    }
+
+    RUBRICS {
+      bigint id PK
+      string title
+      text description NULL
+      json config NULL "scales/levels"
+      timestamps
+      softDeletes
+    }
+
+    RUBRIC_ITEMS {
+      bigint id PK
+      bigint rubric_id FK
+      string criterion
+      decimal weight "0-100"
+      json levels "label & score per level"
+      integer order_no
+      timestamps
+    }
+
+    SUBMISSIONS {
+      bigint id PK
+      bigint assignment_id FK
+      bigint student_id FK "users.id"
+      text content_text NULL
+      string content_url NULL "file/object storage"
+      enum content_type "text|file|link|mixed"
+      datetime submitted_at
+      boolean is_late
+      timestamps
+      unique(assignment_id,student_id)
+      index(student_id,submitted_at)
+    }
+
+    GRADES {
+      bigint id PK
+      bigint submission_id FK UK
+      bigint grader_id FK "users.id (pengajar)"
+      decimal score_total "0-100"
+      json scores_json "per rubric item"
+      text feedback NULL
+      datetime graded_at
+      timestamps
+    }
+
+    SESSIONS {
+      bigint id PK
+      bigint class_id FK
+      string topic
+      datetime start_at
+      datetime end_at
+      string qr_token_hash NULL
+      datetime qr_expire_at NULL
+      json meta NULL "meeting_link, room, etc"
+      timestamps
+      index(class_id,start_at)
+    }
+
+    ATTENDANCE {
+      bigint id PK
+      bigint session_id FK
+      bigint user_id FK
+      enum status "present|late|absent|excused"
+      json device_info NULL
+      point geo NULL
+      datetime scanned_at NULL
+      timestamps
+      unique(session_id,user_id)
+    }
+
+    THREADS {
+      bigint id PK
+      string scope "class|assignment|private"
+      bigint scope_id "classes.id or assignments.id"
+      bigint created_by FK "users.id"
+      timestamps
+      index(scope,scope_id)
+    }
+
+    MESSAGES {
+      bigint id PK
+      bigint thread_id FK
+      bigint sender_id FK "users.id"
+      text body
+      string attachment_url NULL
+      json meta NULL
+      timestamps
+      index(thread_id,created_at)
+    }
+
+    NOTIFICATIONS {
+      bigint id PK
+      bigint user_id FK
+      string type
+      json payload
+      datetime read_at NULL
+      timestamps
+      index(user_id,read_at)
+    }
+
+    AUDIT_LOGS {
+      bigint id PK
+      bigint actor_id FK "users.id"
+      string action
+      string target_type
+      bigint target_id
+      json meta
+      timestamps
+      index(actor_id,created_at)
+    }
+
+    ASSIGNMENT_TEMPLATES {
+      bigint id PK
+      string title
+      text description
+      bigint rubric_id FK NULL
+      json defaults "deadline_offset, settings"
+      timestamps
+      softDeletes
+    }
